@@ -4,6 +4,9 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:testingbloc_course/bloc/bloc_actions.dart';
+import 'package:testingbloc_course/bloc/persons.dart';
+import 'package:testingbloc_course/bloc/persons_bloc.dart';
 
 extension Log on Object {
   void log() => devtools.log(toString());
@@ -31,84 +34,8 @@ class MyApp extends StatelessWidget {
   }
 }
 
-@immutable
-abstract class LoadAction {
-  const LoadAction();
-}
-
-@immutable
-class LoadPersonsAction implements LoadAction {
-  final PersonUrl url;
-  const LoadPersonsAction({required this.url}) : super();
-}
-
-enum PersonUrl {
-  persons1,
-  persons2,
-}
-
-extension UrlString on PersonUrl {
-  String get urlString {
-    switch (this) {
-      case PersonUrl.persons1:
-        return "http://192.168.29.119:5500/api/persons1.json";
-      case PersonUrl.persons2:
-        return "http://192.168.29.119:5500/api/persons2.json";
-    }
-  }
-}
-
 extension Subscript<T> on Iterable<T> {
   T? operator [](int index) => length > index ? elementAt(index) : null;
-}
-
-@immutable
-class Person {
-  final String name;
-  final int age;
-
-  const Person({required this.name, required this.age});
-
-  Person.fromJson(Map<String, dynamic> json)
-      : name = json['name'] as String,
-        age = json['age'] as int;
-
-  @override
-  String toString() => 'Person(name: $name, age: $age)';
-}
-
-@immutable
-class FetchResult {
-  final Iterable<Person> persons;
-  final bool isRetrievedFromCache;
-
-  const FetchResult(
-      {required this.persons, required this.isRetrievedFromCache});
-
-  @override
-  String toString() =>
-      'FetchResult(persons: $persons, isRetrievedFromCache: $isRetrievedFromCache)';
-}
-
-class PersonsBloc extends Bloc<LoadAction, FetchResult?> {
-  final Map<PersonUrl, Iterable<Person>> _cache = {};
-  PersonsBloc() : super(null) {
-    on<LoadPersonsAction>((event, emit) async {
-      PersonUrl url = event.url;
-      if (_cache.containsKey(url)) {
-        final persons = _cache[url]!;
-        final result =
-            FetchResult(persons: persons, isRetrievedFromCache: true);
-        emit(result);
-      } else {
-        final persons = await getPersons(url.urlString);
-        _cache[url] = persons;
-        final result =
-            FetchResult(persons: persons, isRetrievedFromCache: false);
-        emit(result);
-      }
-    });
-  }
 }
 
 Future<Iterable<Person>> getPersons(String url) => HttpClient()
@@ -140,18 +67,16 @@ class _MyHomePageState extends State<MyHomePage> {
             children: [
               TextButton(
                   onPressed: () {
-                    context
-                        .read<PersonsBloc>()
-                        .add(const LoadPersonsAction(url: PersonUrl.persons1));
+                    context.read<PersonsBloc>().add(const LoadPersonsAction(
+                        url: persons1Url, loader: getPersons));
                   },
-                  child: const Text("Load Json #1")),
+                  child: const Text('Load Json #1')),
               TextButton(
                   onPressed: () {
-                    context
-                        .read<PersonsBloc>()
-                        .add(const LoadPersonsAction(url: PersonUrl.persons2));
+                    context.read<PersonsBloc>().add(const LoadPersonsAction(
+                        url: persons2Url, loader: getPersons));
                   },
-                  child: const Text("Load Json #2")),
+                  child: const Text('Load Json #2')),
             ],
           ),
           BlocBuilder<PersonsBloc, FetchResult?>(
